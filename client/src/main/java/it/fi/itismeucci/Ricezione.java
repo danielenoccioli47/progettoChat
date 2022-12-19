@@ -2,12 +2,11 @@ package it.fi.itismeucci;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class Ricezione extends Thread{
     Client ilClientDaGestire;
     String stringaRicevuta;
-    ObjectMapper riceve = new ObjectMapper();
+    
     public Ricezione(Client ilClientDaGestire){
         this.ilClientDaGestire = ilClientDaGestire;
         try {

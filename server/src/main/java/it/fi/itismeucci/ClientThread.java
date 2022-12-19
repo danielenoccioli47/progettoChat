@@ -15,8 +15,7 @@ public class ClientThread extends Thread{
     Socket Socket_client;
     BufferedReader inDalClient;
     DataOutputStream outVersoClient;
-    ObjectMapper invia = new ObjectMapper();
-    ObjectMapper riceve = new ObjectMapper();
+    ObjectMapper inviaRiceve = new ObjectMapper();
     String stringaRicevuta;
     String stringaDaInviare;
     String nomeClient;
@@ -71,7 +70,7 @@ public class ClientThread extends Thread{
             try{
                 inDalClient = new BufferedReader(new InputStreamReader(Socket_client.getInputStream()));
                 stringaRicevuta=inDalClient.readLine();
-                pojoDatiClient objClient =  riceve.readValue(stringaRicevuta, pojoDatiClient.class);
+                pojoDatiClient objClient =  inviaRiceve.readValue(stringaRicevuta, pojoDatiClient.class);
                 if(objClient.getCodiceOp() == 2){
                     System.out.println(objClient.nomeClient + " vuole disconnettersi, gli invio la conferma");
                 }
@@ -86,7 +85,7 @@ public class ClientThread extends Thread{
                         messaggiodainviare.setMessaggioGruppo("");//lo ho aggiunto
                         messaggiodainviare.setDestinatario(objClient.getDestinatario());
                         messaggiodainviare.setMittente(nomeClient);
-                        String msg = invia.writeValueAsString(messaggiodainviare);
+                        String msg = inviaRiceve.writeValueAsString(messaggiodainviare);
                         //controllo che il client scelto dal mittente sia online
                         boolean ilClientEPresente = false;
                         for(int i = 0;i < ClientThread.listaClientOn.size();i++){
@@ -102,7 +101,7 @@ public class ClientThread extends Thread{
                             messError.setDestinatario(nomeClient);
                             messError.setMittente("server");
                             messError.setMessaggioSingolo("messaggio non inviato con successo");
-                            outVersoClient.writeBytes(invia.writeValueAsString(messError) + "\n");
+                            outVersoClient.writeBytes(inviaRiceve.writeValueAsString(messError) + "\n");
                         }
                         else//riinoltro il messaggio al client in modo che lui possa salvarselo nella conversazione
                             outVersoClient.writeBytes(msg + "\n");
@@ -114,14 +113,14 @@ public class ClientThread extends Thread{
                         messaggiodainviare1.setMittente(nomeClient);
                         messaggiodainviare1.setMessaggioGruppo(objClient.getCorpoMessaggio());
                         messaggiodainviare1.setMessaggioSingolo("");//lo ho aggiunto
-                        String msg1 = invia.writeValueAsString(messaggiodainviare1);
+                        String msg1 = inviaRiceve.writeValueAsString(messaggiodainviare1);
                         //controllo se ci sono altri client oltre al mittente
                         if(listaClientOn.size() < 1){
                             pojoDatiServer messError = new pojoDatiServer();
                             messError.setDestinatario(nomeClient);
                             messError.setMittente("server");
                             messError.setMessaggioSingolo("messaggio non inviato con successo: sei l'unico client ad essere connesso");
-                            outVersoClient.writeBytes(invia.writeValueAsString(messError) + "\n");
+                            outVersoClient.writeBytes(inviaRiceve.writeValueAsString(messError) + "\n");
                             break;
                         }
                         for(int j = 0; j < listaClientOn.size(); j++){
@@ -134,7 +133,7 @@ public class ClientThread extends Thread{
                         pojoDatiServer confermaChiusura=new pojoDatiServer();
                         confermaChiusura.setDestinatario(nomeClient);
                         confermaChiusura.setMessaggioSingolo("stai uscendo dalla conversazione:chiudo la comunicazione...");
-                        String msg2 = invia.writeValueAsString(confermaChiusura);
+                        String msg2 = inviaRiceve.writeValueAsString(confermaChiusura);
                         outVersoClient.writeBytes(msg2 + "\n");
                         listaClientOn.remove(this);
                         Socket_client.close();

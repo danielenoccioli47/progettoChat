@@ -3,7 +3,6 @@ package it.fi.itismeucci;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -11,7 +10,6 @@ import java.util.ArrayList;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ClientThread extends Thread{
-    //ServerSocket server;
     Socket Socket_client;
     BufferedReader inDalClient;
     DataOutputStream outVersoClient;
@@ -45,6 +43,7 @@ public class ClientThread extends Thread{
                 if(this.cercaClient(stringaRicevuta)){
                     outVersoClient.writeBytes("ok" + "\n");
                     nomeClient = stringaRicevuta;
+
                     break;
                 }else{
                     outVersoClient.writeBytes("non ok" + "\n");
@@ -58,11 +57,7 @@ public class ClientThread extends Thread{
         //inserimento nella lista dei clientON
         System.out.println("NUOVO CLIENT :"+this.nomeClient);
         listaClientOn.add(this);
-        try{
-            comunica();
-        }catch(Exception e){
-            System.out.println("start comunica: " + e.getMessage());
-        }
+        comunica();
     }
 
     public void comunica(){
@@ -71,40 +66,53 @@ public class ClientThread extends Thread{
                 inDalClient = new BufferedReader(new InputStreamReader(Socket_client.getInputStream()));
                 stringaRicevuta=inDalClient.readLine();
                 pojoDatiClient objClient =  inviaRiceve.readValue(stringaRicevuta, pojoDatiClient.class);
+
+                //
+                boolean ilClientEPresente = false;
+                for(int i = 0;i < listaClientOn.size();i++){
+                    if(listaClientOn.get(i).nomeClient.equals(objClient.getDestinatario())){
+                        ilClientEPresente = true;
+                    }
+                }
+                //
                 if(objClient.getCodiceOp() == 2){
                     System.out.println(objClient.nomeClient + " vuole disconnettersi, gli invio la conferma");
                 }
-                else{
+                else if(ilClientEPresente){
                     System.out.println("messaggio ricevuto da "+objClient.getNomeClient() + " lo inoltro a "+ objClient.getDestinatario()+ ", ");
                     System.out.println("contenuto del messaggio: "+objClient.getCorpoMessaggio()+"\n");
+                }
+                else if(!ilClientEPresente){
+                    System.out.println("messaggio ricevuto da "+objClient.getNomeClient() + " non lo posso inoltrare a "+ objClient.getDestinatario()+ ", ");
+                    System.out.println("perche il destinatario non esiste."+"\n");
                 }
                 switch(objClient.getCodiceOp()){
                     case 0://invio messaggio singolo
                         pojoDatiServer messaggiodainviare=new pojoDatiServer();
                         messaggiodainviare.setMessaggioSingolo(objClient.getCorpoMessaggio());
-                        messaggiodainviare.setMessaggioGruppo("");//lo ho aggiunto
+                        messaggiodainviare.setMessaggioGruppo("");
                         messaggiodainviare.setDestinatario(objClient.getDestinatario());
                         messaggiodainviare.setMittente(nomeClient);
                         String msg = inviaRiceve.writeValueAsString(messaggiodainviare);
                         //controllo che il client scelto dal mittente sia online
-                        boolean ilClientEPresente = false;
-                        for(int i = 0;i < ClientThread.listaClientOn.size();i++){
-                            if(ClientThread.listaClientOn.get(i).nomeClient.equals(messaggiodainviare.getDestinatario())){
-                                DataOutputStream out = new DataOutputStream(ClientThread.listaClientOn.get(i).Socket_client.getOutputStream());
-                                out.writeBytes(msg + "\n");
-                                ilClientEPresente = true;
+                        if(ilClientEPresente){
+                            for(int i = 0;i < listaClientOn.size();i++){
+                                if(listaClientOn.get(i).nomeClient.equals(messaggiodainviare.getDestinatario())){
+                                    DataOutputStream out = new DataOutputStream(ClientThread.listaClientOn.get(i).Socket_client.getOutputStream());
+                                    out.writeBytes(msg + "\n");
+                                    outVersoClient.writeBytes(msg + "\n");
+                                }
                             }
                         }
                         //il client destinatario non e' online
-                        if(ilClientEPresente == false){
+                        else if(ilClientEPresente == false){
                             pojoDatiServer messError = new pojoDatiServer();
                             messError.setDestinatario(nomeClient);
                             messError.setMittente("server");
                             messError.setMessaggioSingolo("messaggio non inviato con successo");
                             outVersoClient.writeBytes(inviaRiceve.writeValueAsString(messError) + "\n");
                         }
-                        else//riinoltro il messaggio al client in modo che lui possa salvarselo nella conversazione
-                            outVersoClient.writeBytes(msg + "\n");
+                            
                              
                         break;
                     case 1://invio messaggio gruppo
@@ -135,11 +143,15 @@ public class ClientThread extends Thread{
                         confermaChiusura.setMessaggioSingolo("stai uscendo dalla conversazione:chiudo la comunicazione...");
                         String msg2 = inviaRiceve.writeValueAsString(confermaChiusura);
                         outVersoClient.writeBytes(msg2 + "\n");
-                        listaClientOn.remove(this);
+                        outVersoClient.close();
+                        inDalClient.close();
                         Socket_client.close();
+                        listaClientOn.remove(this);
+                        this.stop();
                         break;    
                     }
-            }catch (IOException e){
+            }catch (Exception e){
+                System.out.println(this.nomeClient + " si è disconnesso.");
                 listaClientOn.remove(this);
                 this.stop();
                 break;
